@@ -66,6 +66,14 @@ apt-get -y install pptpd || {
 #ubuntu has exit 0 at the end of the file.
 sed -i '/^exit 0/d' /etc/rc.local
 
+apt-get -y install wget || {
+  echo "Could not install wget, required to retrieve your IP address." 
+  exit 1
+}
+
+#find out external ip 
+IP=`wget -q -O - http://api.ipify.org`
+
 cat >> /etc/rc.local << END
 echo 1 > /proc/sys/net/ipv4/ip_forward
 #control channel
@@ -73,7 +81,7 @@ iptables -I INPUT -p tcp --dport 1723 -j ACCEPT
 #gre tunnel protocol
 iptables -I INPUT  --protocol 47 -j ACCEPT
 
-iptables -t nat -A POSTROUTING -s 192.168.2.0/24 -d 0.0.0.0/0 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 192.168.0.0/24 -j SNAT --to-source $IP
 
 #supposedly makes the vpn work better
 iptables -I FORWARD -s 192.168.2.0/24 -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j TCPMSS --set-mss 1356
@@ -95,7 +103,7 @@ fi
 
 if [ -z "$NAME" ]
 then
-   NAME="vpn"
+   NAME="hutvpn"
 fi
 
 cat >/etc/ppp/chap-secrets <<END
@@ -126,13 +134,6 @@ novjccomp
 nologfd
 END
 
-apt-get -y install wget || {
-  echo "Could not install wget, required to retrieve your IP address." 
-  exit 1
-}
-
-#find out external ip 
-IP=`wget -q -O - http://api.ipify.org`
 
 if [ "x$IP" = "x" ]
 then
